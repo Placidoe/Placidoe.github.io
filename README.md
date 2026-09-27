@@ -2,6 +2,10 @@
 
 Personal technical homepage and notes, published at [placidoe.github.io](https://placidoe.github.io).
 
+## Published learning notes
+
+- [RL Roadmap](https://placidoe.github.io/rl-roadmap.html) — a visual, evidence-first route from tabular RL through deep RL, world models, offline RL, RLHF, and agentic RL. It links original papers and the reproducible results in [`rl-lab`](https://github.com/Placidoe/rl-lab).
+
 ## Add a note
 
-For now this is intentionally plain HTML. Add a new article as an HTML file and link it from `index.html`, then commit and push; GitHub Pages will publish the change automatically.
+This site is intentionally plain HTML and self-contained CSS. Add a new article as an HTML file and link it from `index.html`, then commit and push; GitHub Pages will publish the change automatically.
