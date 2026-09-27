@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="强化学习从零开始名词速查：每个术语配一条定义和一个直观例子。" />
+    <title>RL 名词速查 — Placidoe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="rl.css" />
+  </head>
+  <body>
+    <header class="lesson-hero"><nav class="wrap nav"><a class="logo" href="../index.html">P<i>.</i></a><div class="navlinks"><a href="index.html">RL COLLECTION</a><a href="glossary.html">GLOSSARY</a><a href="../rl-roadmap.html">ROADMAP</a><a href="https://github.com/Placidoe/rl-lab" target="_blank" rel="noreferrer">RL LAB ↗</a></div></nav><div class="wrap"><p class="crumb"><a href="index.html">RL COLLECTION</a> / GLOSSARY</p><h1>强化学习<br />名词速查</h1><p class="sub">不默认你已经懂术语。每张卡只做三件事：一句定义、它为什么重要、一个直观例子。新术语会持续补充。</p></div></header>
+    <main class="lesson">
+      <section><p class="eyebrow">HOW TO USE</p><h2>遇到陌生词，先回到它在交互闭环中的位置。</h2><p>大多数 RL 术语属于四类：谁在行动、看见了什么、如何评价好坏、怎样从经验中更新。不要背定义；把术语放回“Agent → Action → Environment → Reward / Next State”的循环里。</p><nav class="term-nav" aria-label="术语目录"><a href="#agent">Agent</a><a href="#environment">Environment</a><a href="#state">State</a><a href="#observation">Observation</a><a href="#action">Action</a><a href="#reward">Reward</a><a href="#trajectory">Trajectory</a><a href="#episode">Episode</a><a href="#mdp">MDP</a><a href="#policy">Policy</a><a href="#return">Return</a><a href="#gamma">γ</a><a href="#value">Value</a><a href="#q-value">Q-value</a><a href="#bellman">Bellman</a><a href="#td">TD error</a><a href="#exploration">Exploration</a></nav></section>
+      <section><p class="eyebrow">INTERACTION</p><h2>谁与谁交互？</h2><div class="term-grid">
+        <article class="term" id="agent"><code>AGENT / 智能体</code><h3>做决定的一方</h3><p>接收信息、选择动作、根据反馈调整行为的程序或模型。</p><p class="example"><b>例子：</b>玩 Atari 的控制器、机械臂控制网络、会调用工具的 LLM agent。</p></article>
+        <article class="term" id="environment"><code>ENVIRONMENT / 环境</code><h3>被行动影响的世界</h3><p>接收动作，返回下一步信息和奖励的系统；可以是游戏、仿真器、代码执行器或浏览器任务。</p><p class="example"><b>例子：</b>GridWorld 根据“向右走”返回新格子和 reward。</p></article>
+        <article class="term" id="state"><code>STATE / 状态 s</code><h3>决策所需的“充分信息”</h3><p>如果知道当前状态和动作，就足以描述未来的概率分布，那么它是 Markov state。</p><p class="example"><b>例子：</b>棋盘局面通常比“刚才下了什么棋”更接近状态。</p></article>
+        <article class="term" id="observation"><code>OBSERVATION / 观测 o</code><h3>Agent 实际看得到的输入</h3><p>观测不一定等于真实状态；它可能缺少隐藏信息，因此任务可能是部分可观测的。</p><p class="example"><b>例子：</b>摄像头画面看不到机器人被遮挡的速度。</p></article>
+        <article class="term" id="action"><code>ACTION / 动作 a</code><h3>Agent 对环境施加的选择</h3><p>动作可以是离散的，也可以是连续向量；动作空间决定可用算法。</p><p class="example"><b>例子：</b>GridWorld 的上/下/左/右；机械臂每个关节的力矩。</p></article>
+        <article class="term" id="reward"><code>REWARD / 即时奖励 r</code><h3>环境给出的局部反馈</h3><p>它是每一步的信号，不等于最终目标；reward 设计会直接改变被优化的行为。</p><p class="example"><b>例子：</b>抵达终点 +10、每走一步 -1，鼓励更短路径。</p></article>
+      </div></section>
+      <section><p class="eyebrow">DATA &amp; OBJECTIVE</p><h2>一段经验怎样变成“长期好坏”？</h2><div class="term-grid">
+        <article class="term" id="trajectory"><code>TRAJECTORY / 轨迹 τ</code><h3>一次连续交互记录</h3><p>由状态、动作、奖励不断交替形成的数据序列，是 RL 的基本训练材料。</p><p class="example"><b>例子：</b>(s₀,a₀,r₁,s₁,a₁,r₂, …)。</p></article>
+        <article class="term" id="episode"><code>EPISODE / 回合</code><h3>有开始和结束的一段轨迹</h3><p>通常在成功、失败、超时或达到终止状态后结束；并非所有任务都天然分回合。</p><p class="example"><b>例子：</b>走到 GridWorld 终点，或 CartPole 倒下。</p></article>
+        <article class="term" id="policy"><code>POLICY / 策略 π</code><h3>从状态到动作的规则</h3><p>策略可以确定性地选一个动作，也可以输出动作分布。训练的最终产物通常就是它。</p><p class="example"><b>例子：</b>π(右|当前位置)=0.8，π(上|当前位置)=0.2。</p></article>
+        <article class="term" id="return"><code>RETURN / 回报 G</code><h3>从现在开始的长期奖励</h3><p>未来 reward 的折扣和。优化 return，才会让智能体权衡短期成本与远期收益。</p><p class="example"><b>例子：</b>现在 -1、以后 +10，是否值得要看完整 G。</p></article>
+        <article class="term" id="gamma"><code>DISCOUNT / 折扣 γ</code><h3>未来 reward 的权重</h3><p>γ 接近 1 更重视长期后果；减小 γ 不只是“让训练更稳”，也会改变优化目标。</p><p class="example"><b>例子：</b>A2 中 γ=0.5 会理性偏向较近的收益。</p></article>
+        <article class="term" id="mdp"><code>MDP / 马尔可夫决策过程</code><h3>RL 的最小问题描述</h3><p>由状态、动作、转移概率、奖励和折扣组成。它规定“环境是什么”和“好坏如何定义”。</p><p class="example"><b>例子：</b>GridWorld：格子、移动规则、终点奖励与 γ。</p></article>
+      </div></section>
+      <section><p class="eyebrow">LEARNING SIGNALS</p><h2>算法在估计什么，又靠什么更新？</h2><div class="term-grid">
+        <article class="term" id="value"><code>VALUE / 状态价值 V(s)</code><h3>处于一个状态有多好</h3><p>在遵循某个策略的前提下，从状态开始可获得的期望 return。</p><p class="example"><b>例子：</b>离目标近不一定价值高，还要考虑陷阱和未来路径。</p></article>
+        <article class="term" id="q-value"><code>Q-VALUE / 动作价值 Q(s,a)</code><h3>在状态 s 做动作 a 有多好</h3><p>它把“选择哪个动作”的比较显式化，Q-learning 因而可以直接选 max Q 的动作。</p><p class="example"><b>例子：</b>同一格子中，向右与向上有不同 Q 值。</p></article>
+        <article class="term" id="bellman"><code>BELLMAN BACKUP</code><h3>用下一步估计当前步</h3><p>当前价值 = 当前 reward + 折扣后的下一状态价值。它将长期问题递归拆解。</p><p class="example"><b>例子：</b>Q(s,a) 用 r + γ max Q(s′,a′) 作为学习目标。</p></article>
+        <article class="term" id="td"><code>TD ERROR / 时序差分误差 δ</code><h3>预测和新目标之间的差</h3><p>δ = r + γV(s′) − V(s)。它是“我原先对未来的估计错了多少”。</p><p class="example"><b>例子：</b>若意外拿到高 reward，δ 为正，相关价值会上调。</p></article>
+        <article class="term" id="exploration"><code>EXPLORATION / 探索</code><h3>主动尝试尚不确定的动作</h3><p>不探索就可能永远不知道更好的路径；探索过多又会牺牲即时表现。</p><p class="example"><b>例子：</b>ε-greedy 以 ε 的概率随机行动。</p></article>
+        <article class="term" id="exploitation"><code>EXPLOITATION / 利用</code><h3>选择当前估计最好的动作</h3><p>利用已有知识拿 reward；它与探索共同构成经典张力。</p><p class="example"><b>例子：</b>选择当前 Q(s,a) 最大的动作。</p></article>
+      </div></section>
+      <section><p class="eyebrow">NEXT</p><h2>接下来这些词会自然出现。</h2><p>Replay Buffer、Target Network、Actor、Critic、Advantage、KL、Verifier、Rollout、Off-policy、On-policy 会在对应原理课出现时补齐，不让词表领先于理解。</p></section>
+    </main>
+    <footer class="footer"><div class="wrap"><span>RL GLOSSARY · GROWING WITH THE CURRICULUM</span><a href="index.html">返回合集 ↗</a></div></footer>
+  </body>
+</html>
