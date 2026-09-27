@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Placidoe 的强化学习 0 到 1 学习合集：以原理、论文和可复现实验为骨架。" />
+    <title>RL 从 0 到 1 — Placidoe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="rl.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <nav class="wrap nav"><a class="logo" href="../index.html">P<i>.</i></a><div class="navlinks"><a href="../index.html">HOME</a><a href="../rl-roadmap.html">ROADMAP</a><a href="https://github.com/Placidoe/rl-lab" target="_blank" rel="noreferrer">RL LAB ↗</a></div></nav>
+      <div class="wrap">
+        <p class="kicker">PLACIDOE / REINFORCEMENT LEARNING COLLECTION</p>
+        <h1>强化学习<br />从 0 到 1</h1>
+        <p class="lead">不是算法清单，而是一套可推导、可质疑、可测量的学习系统。先理解反馈闭环，再进入深度 RL、LLM 后训练与 Agentic RL。</p>
+        <p class="meta">模式：原理优先<br />实验：按阶段逐步开启<br />当前：Lesson 01</p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="section">
+        <p class="eyebrow">COLLECTION MANIFESTO</p>
+        <h2>每一课都回答一个明确的问题。</h2>
+        <p class="intro">我们先不追求跑出分数，而是先建立判断力：优化目标是什么？数据从哪里来？哪个假设使算法成立？什么指标能推翻我们的结论？实验会保留为独立阶段，并且只在结果可审计时标记完成。</p>
+        <div class="overview"><article class="panel"><h3>三条学习纪律</h3><p>公式先于框架；对照先于结论；失败模式与成功曲线同等重要。每一课将沉淀为 HTML 原理页、论文阅读笔记和后续可复现实现。</p></article><article class="panel signal"><b>STATUS / 2026-09-28</b><p>原理课程已启动。A1/A2 的 GridWorld 实验保留为已完成证据；新的深度 RL 实验暂时全部 PENDING。</p></article></div>
+      </section>
+
+      <section class="section" id="curriculum">
+        <p class="eyebrow">CURRICULUM</p>
+        <h2>路线不是直线，是能力依赖图。</h2>
+        <p class="intro">先掌握一条 transition 如何变成学习信号，再理解神经网络如何放大不稳定性，最后再将它迁移到 LLM 与工具环境。</p>
+        <figure class="route">
+          <svg viewBox="0 0 920 220" role="img" aria-label="强化学习课程依赖图">
+            <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#bfc5e1"/></marker></defs>
+            <text x="4" y="24" fill="#bfc5e1" font-family="DM Mono" font-size="12">UNDERSTAND → IMPLEMENT → MEASURE → EXTEND</text>
+            <path d="M167 107H230M398 107H461M629 107H692" stroke="#bfc5e1" stroke-width="2" marker-end="url(#a)"/>
+            <g font-family="DM Sans"><rect x="4" y="68" width="163" height="78" rx="10" fill="#c9f56b"/><text x="25" y="99" fill="#15212a" font-size="13">01 · MDP 与回报</text><text x="25" y="122" fill="#2c4350" font-size="12">状态、动作、奖励、轨迹</text><rect x="230" y="68" width="168" height="78" rx="10" fill="#9eeef0"/><text x="251" y="99" fill="#15212a" font-size="13">02 · 价值与 Bellman</text><text x="251" y="122" fill="#2c4350" font-size="12">估值、backup、TD error</text><rect x="461" y="68" width="168" height="78" rx="10" fill="#d7d2fb"/><text x="482" y="99" fill="#252244" font-size="13">03 · 控制与探索</text><text x="482" y="122" fill="#4c4672" font-size="12">策略、Q-learning、ε-greedy</text><rect x="692" y="68" width="224" height="78" rx="10" fill="#ffb68b"/><text x="713" y="99" fill="#3c2520" font-size="13">04+ · Deep / LLM / Agent RL</text><text x="713" y="122" fill="#624035" font-size="12">近似、rollout、verifier、系统</text></g>
+            <text x="4" y="190" fill="#aeb5d0" font-family="DM Mono" font-size="11">实验将跟在原理之后；不会让“跑通代码”替代理解。</text>
+          </svg>
+          <figcaption>自绘依赖图：后续每个阶段都会回到前一层的 MDP、回报与估值概念。</figcaption>
+        </figure>
+        <div class="curriculum">
+          <a class="unit active" href="01-mdp.html"><span class="unit-index">01</span><span><h3>什么是强化学习？MDP、轨迹与长期回报</h3><p>从一个交互闭环开始：为什么监督学习的静态数据视角不够？</p></span><span class="status live">START HERE →</span></a>
+          <div class="unit"><span class="unit-index">02</span><span><h3>价值函数与 Bellman 方程</h3><p>把长期问题拆成一步 backup；区分 state value 和 action value。</p></span><span class="status read">NEXT</span></div>
+          <div class="unit"><span class="unit-index">03</span><span><h3>规划、Monte Carlo 与 Temporal Difference</h3><p>已知环境模型时如何规划；未知时如何从样本学习。</p></span><span class="status">PENDING</span></div>
+          <div class="unit"><span class="unit-index">04</span><span><h3>控制：SARSA、Q-learning 与探索</h3><p>on-policy / off-policy 的差别，以及折扣与探索如何改变真实目标。</p></span><span class="status">PENDING</span></div>
+          <div class="unit"><span class="unit-index">05</span><span><h3>深度 RL 的稳定性：DQN 到 PPO / SAC</h3><p>deadly triad、replay、target network、policy constraint 与 entropy。</p></span><span class="status">PENDING</span></div>
+          <div class="unit"><span class="unit-index">06</span><span><h3>前沿：World Models、Offline RL、RLHF 与 Agentic RL</h3><p>将环境、reward 与 rollout 扩展到 LLM 和工具使用任务。</p></span><span class="status">PENDING</span></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="eyebrow">ALREADY IN THE LAB</p>
+        <h2>实验不抢跑，但已有证据不会丢失。</h2>
+        <div class="note-grid"><article class="note"><b>A1 / COMPLETE</b><p>GridWorld 中 Value Iteration 9 次 sweep 收敛；Q-learning 的 3/3 seed 达到目标。</p></article><article class="note"><b>A2 / COMPLETE</b><p>8/8 baseline seed 在 episode 200 前收敛到远期目标；快速停止探索会锁定近处终点。</p></article><article class="note"><b>B1+ / PENDING</b><p>深度 RL 先完成原理页与评估方案，再开始训练和消融。</p></article></div>
+        <div class="pending"><p><b>实验策略：</b>每一项新实验先写“问题、变量、反事实、指标、停止条件”。只有脚本、配置、聚合数据和图都齐全，才会从 PENDING 变为 COMPLETE。</p></div>
+      </section>
+    </main>
+    <footer class="footer"><div class="wrap"><span>PLACIDOE · RL FROM ZERO TO ONE</span><a href="../rl-roadmap.html">完整路线图 ↗</a></div></footer>
+  </body>
+</html>
