@@ -30,7 +30,7 @@
 
       <section><p class="eyebrow">ON-POLICY VS OFF-POLICY</p><h2>“用什么行为采数据”与“要学谁”可以相同，也可以分开。</h2><div class="table-wrap"><table class="lesson-table"><thead><tr><th>概念</th><th>行为策略（behavior policy）</th><th>目标策略（target policy）</th><th>本课例子</th></tr></thead><tbody><tr><td><b>On-policy（同策略）</b></td><td>产生数据的策略</td><td>要被评估/改进的同一策略</td><td>SARSA 用 ε-greedy 行动，也把这个会探索的 ε-greedy 当作学习对象。</td></tr><tr><td><b>Off-policy（异策略）</b></td><td>可以更嘈杂、更旧或来自别人的策略</td><td>另一个目标策略</td><td>Q-learning 用 ε-greedy 收集数据，却用 max 学 greedy 目标策略。</td></tr></tbody></table></div><div class="check"><b>悬崖行走的直觉</b><p>若到终点的最短边路旁就是悬崖，Q-learning 的 target 假设“以后总能完美 greedy”，因而可能偏好贴边最短路；SARSA 把将来偶尔 ε-greedy 失手也算进去，常会学到离悬崖更远的安全路。这不是谁绝对正确，而是目标策略不同。</p></div></section>
 
-      <section><p class="eyebrow">DEEP DIVE · Q-LEARNING</p><h2>如果你想把 Q-learning 真正吃透，先走完整推导链。</h2><div class="reading"><a href="04a-q-learning-deep-dive.html"><b>进入 Q-learning 深潜课 →</b><span>从最优 Bellman 方程、单样本替代期望、逐行伪代码、手算三次更新，一直讲到收敛条件、terminal mask、最大化偏差与深度 RL 的失效边界。</span></a></div></section>
+      <section><p class="eyebrow">ALGORITHM DEEP DIVES</p><h2>两条 TD control 路线必须各自推到尽头，不能只做一张对比表。</h2><div class="reading"><a href="04a-q-learning-deep-dive.html"><b>进入 Q-learning 深潜课 →</b><span>从最优 Bellman 方程、单样本替代期望、逐行伪代码、手算三次更新，一直讲到收敛条件、terminal mask、最大化偏差与深度 RL 的失效边界。</span></a><a href="04b-sarsa-deep-dive.html"><b>进入 SARSA 深潜课 →</b><span>从固定策略 Bellman expectation、实际下一动作，到 on-policy 安全性、伪代码不变量与 GLIE 边界。</span></a></div></section>
       <section><p class="eyebrow">READ THE CODE</p><h2>先读 Q-learning 的数据流，不必先背每个变量。</h2><pre class="codeblock">initialize Q(s, a) = 0
 for each episode:
     s = env.reset()
