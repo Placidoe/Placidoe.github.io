@@ -16,8 +16,8 @@
       <div class="wrap">
         <p class="kicker">PLACIDOE / REINFORCEMENT LEARNING COLLECTION</p>
         <h1>强化学习<br />从 0 到 1</h1>
-        <p class="lead">不是算法清单，而是一套可推导、可质疑、可测量的学习系统。先理解反馈闭环，再进入深度 RL、LLM 后训练与 Agentic RL。</p>
-        <p class="meta">模式：原理优先<br />实验：按阶段逐步开启<br />当前：Lesson 03</p>
+        <p class="lead">不是算法清单，而是一套从零开始、可推导、可质疑、可测量的学习系统。先补齐最小前置，再理解反馈闭环，最后进入深度 RL、LLM 后训练与 Agentic RL。</p>
+        <p class="meta">模式：零基础可进入<br />实验：按阶段逐步开启<br />当前：Lesson 03</p>
       </div>
     </header>
 
@@ -25,14 +25,20 @@
       <section class="section">
         <p class="eyebrow">COLLECTION MANIFESTO</p>
         <h2>每一课都回答一个明确的问题。</h2>
-        <p class="intro">我们先不追求跑出分数，而是先建立判断力：优化目标是什么？数据从哪里来？哪个假设使算法成立？什么指标能推翻我们的结论？实验会保留为独立阶段，并且只在结果可审计时标记完成。</p>
-        <div class="overview"><article class="panel"><h3>三条学习纪律</h3><p>公式先于框架；对照先于结论；失败模式与成功曲线同等重要。每一课将沉淀为 HTML 原理页、论文阅读笔记和后续可复现实现。</p></article><a class="panel signal" href="glossary.html"><b>NEW · GLOSSARY →</b><p>不认识名词时，先打开名词速查：Agent、State、Policy、Return、Value、TD、Replay 等都用一句定义和一个例子解释。</p></a></div>
+        <p class="intro">我们先不追求跑出分数，而是先建立判断力：优化目标是什么？数据从哪里来？哪个假设使算法成立？什么指标能推翻结论？每课固定包含“前置、直觉、符号、推导、伪代码、失败模式、自检题、下一课连接”；实验只在结果可审计时标记完成。</p>
+        <div class="overview"><a class="panel signal" href="00-prerequisites.html"><b>START HERE · 零基础前置地图 →</b><p>不默认你懂概率、线代、微积分或深度学习。先判断自己该补什么、何时补、补到什么程度。</p></a><a class="panel" href="glossary.html"><b>GLOSSARY →</b><p>不认识名词时先查 Agent、State、Policy、Return、Value、TD、Replay 等术语；每个词给出一句定义和一个例子。</p></a></div>
+      </section>
+
+      <section class="section" id="method">
+        <p class="eyebrow">TEXTBOOK STANDARD</p>
+        <h2>不是“看懂一遍”，而是能从零复述与推导。</h2>
+        <div class="note-grid"><article class="note"><b>01 · WHY</b><p>先用一个反例说明它要解决什么问题，避免公式先行、概念悬空。</p></article><article class="note"><b>02 · BUILD</b><p>从白话定义到符号表，再逐步推导；每个新符号都链接到名词速查。</p></article><article class="note"><b>03 · TEST</b><p>给出数值算例、伪代码、失败模式与可展开答案；会算才算真正理解。</p></article></div>
       </section>
 
       <section class="section" id="curriculum">
         <p class="eyebrow">CURRICULUM</p>
         <h2>路线不是直线，是能力依赖图。</h2>
-        <p class="intro">先掌握一条 transition 如何变成学习信号，再理解神经网络如何放大不稳定性，最后再将它迁移到 LLM 与工具环境。</p>
+        <p class="intro">先掌握一条 transition 如何变成学习信号，再理解神经网络如何放大不稳定性，最后迁移到 LLM 与工具环境。每一节都给出“必需前置”与“可跳过的进阶数学”。</p>
         <figure class="route">
           <svg viewBox="0 0 920 220" role="img" aria-label="强化学习课程依赖图">
             <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#bfc5e1"/></marker></defs>
@@ -44,12 +50,15 @@
           <figcaption>自绘依赖图：后续每个阶段都会回到前一层的 MDP、回报与估值概念。</figcaption>
         </figure>
         <div class="curriculum">
-          <a class="unit" href="01-mdp.html"><span class="unit-index">01</span><span><h3>什么是强化学习？MDP、轨迹与长期回报</h3><p>从一个交互闭环开始：为什么监督学习的静态数据视角不够？</p></span><span class="status read">READ →</span></a>
-          <a class="unit" href="02-value-bellman.html"><span class="unit-index">02</span><span><h3>价值函数与 Bellman 方程</h3><p>把长期问题拆成一步 backup；区分 state value、action value 与 TD error。</p></span><span class="status read">READ →</span></a>
-          <a class="unit active" href="03-dp-mc-td.html"><span class="unit-index">03</span><span><h3>规划、Monte Carlo 与 Temporal Difference</h3><p>已知环境模型时如何规划；未知时如何从样本学习。</p></span><span class="status live">START →</span></a>
-          <div class="unit"><span class="unit-index">04</span><span><h3>控制：SARSA、Q-learning 与探索</h3><p>on-policy / off-policy 的差别，以及折扣与探索如何改变真实目标。</p></span><span class="status">PENDING</span></div>
-          <div class="unit"><span class="unit-index">05</span><span><h3>深度 RL 的稳定性：DQN 到 PPO / SAC</h3><p>deadly triad、replay、target network、policy constraint 与 entropy。</p></span><span class="status">PENDING</span></div>
-          <div class="unit"><span class="unit-index">06</span><span><h3>前沿：World Models、Offline RL、RLHF 与 Agentic RL</h3><p>将环境、reward 与 rollout 扩展到 LLM 和工具使用任务。</p></span><span class="status">PENDING</span></div>
+          <a class="unit" href="00-prerequisites.html"><span class="unit-index">00</span><span><h3>零基础入口：前置知识与学习方法</h3><p>只补当前需要的数学、Python 与 ML 常识；解释什么时候才需要线代、导数与深度网络。</p></span><span class="status read">START →</span></a>
+          <a class="unit" href="01-mdp.html"><span class="unit-index">01</span><span><h3>什么是强化学习？MDP、轨迹与长期回报</h3><p>前置：G0 读公式 + 概率直觉。学习交互闭环、状态、动作、奖励与长期目标。</p></span><span class="status read">READ →</span></a>
+          <a class="unit" href="02-value-bellman.html"><span class="unit-index">02</span><span><h3>价值函数与 Bellman 方程</h3><p>前置：Lesson 01 + G1 期望。把长期问题拆成一步 backup，区分 V、Q 与 TD error。</p></span><span class="status read">READ →</span></a>
+          <a class="unit active" href="03-dp-mc-td.html"><span class="unit-index">03</span><span><h3>规划、Monte Carlo 与 Temporal Difference</h3><p>前置：Lesson 02。模型已知时如何规划；模型未知时怎样通过完整回报或一步自举学习。</p></span><span class="status live">CURRENT →</span></a>
+          <div class="unit"><span class="unit-index">04</span><span><h3>控制：SARSA、Q-learning 与探索</h3><p>前置：Lesson 03。评估怎样变成改策略；on-policy / off-policy、ε-greedy 与最大化偏差。</p></span><span class="status">PENDING</span></div>
+          <div class="unit"><span class="unit-index">05</span><span><h3>函数近似与 DQN：为什么深度 RL 容易不稳定</h3><p>前置：G2/G4。神经网络替代表格后，deadly triad、replay buffer 与 target network 如何出现。</p></span><span class="status">PENDING</span></div>
+          <div class="unit"><span class="unit-index">06</span><span><h3>Policy Gradient 与 Actor-Critic</h3><p>前置：G3。log-derivative、REINFORCE、baseline、advantage 与 credit assignment。</p></span><span class="status">PENDING</span></div>
+          <div class="unit"><span class="unit-index">07</span><span><h3>PPO / SAC 与现代稳定训练</h3><p>前置：Lesson 06。trust region、KL、entropy、连续动作与离线评估的边界。</p></span><span class="status">PENDING</span></div>
+          <div class="unit"><span class="unit-index">08</span><span><h3>前沿：Offline RL、World Models、RLHF 与 Agentic RL</h3><p>前置：全课程地基。将 reward、rollout、verifier 与工具环境放进 LLM 系统。</p></span><span class="status">PENDING</span></div>
         </div>
       </section>
 
