@@ -26,18 +26,18 @@
         <article class="term" id="policy"><code>POLICY / 策略 π</code><h3>从状态到动作的规则</h3><p>策略可以确定性地选一个动作，也可以输出动作分布。训练的最终产物通常就是它。</p><p class="example"><b>例子：</b>π(右|当前位置)=0.8，π(上|当前位置)=0.2。</p></article>
         <article class="term" id="return"><code>RETURN / 回报 G</code><h3>从现在开始的长期奖励</h3><p>未来 reward 的折扣和。优化 return，才会让智能体权衡短期成本与远期收益。</p><p class="example"><b>例子：</b>现在 -1、以后 +10，是否值得要看完整 G。</p></article>
         <article class="term" id="gamma"><code>DISCOUNT / 折扣 γ</code><h3>未来 reward 的权重</h3><p>γ 接近 1 更重视长期后果；减小 γ 不只是“让训练更稳”，也会改变优化目标。</p><p class="example"><b>例子：</b>A2 中 γ=0.5 会理性偏向较近的收益。</p></article>
-        <article class="term" id="mdp"><code>MDP / 马尔可夫决策过程</code><h3>RL 的最小问题描述</h3><p>由状态、动作、转移概率、奖励和折扣组成。它规定“环境是什么”和“好坏如何定义”。</p><p class="example"><b>例子：</b>GridWorld：格子、移动规则、终点奖励与 γ。</p></article>
+        <article class="term" id="mdp"><code>MDP / MARKOV DECISION PROCESS / 马尔可夫决策过程</code><h3>把“连续做决定的世界”写清楚的说明书</h3><p><b>Markov（马尔可夫）</b>指：当前状态已经包含预测未来所需的信息；<b>Decision（决策）</b>指 Agent 要选动作；<b>Process（过程）</b>指这个互动会不断重复。MDP 由状态、动作、转移概率、奖励和折扣组成，规定“环境是什么”和“好坏如何定义”。</p><p class="example"><b>例子：</b>GridWorld：格子、移动规则、终点奖励与 γ。若“是否拿到钥匙”会改变开门结果，它也必须写进状态。</p></article>
       </div></section>
       <section><p class="eyebrow">LEARNING SIGNALS</p><h2>算法在估计什么，又靠什么更新？</h2><div class="term-grid">
         <article class="term" id="value"><code>VALUE / 状态价值 V(s)</code><h3>处于一个状态有多好</h3><p>在遵循某个策略的前提下，从状态开始可获得的期望 return。</p><p class="example"><b>例子：</b>离目标近不一定价值高，还要考虑陷阱和未来路径。</p></article>
         <article class="term" id="q-value"><code>Q-VALUE / 动作价值 Q(s,a)</code><h3>在状态 s 做动作 a 有多好</h3><p>它把“选择哪个动作”的比较显式化，Q-learning 因而可以直接选 max Q 的动作。</p><p class="example"><b>例子：</b>同一格子中，向右与向上有不同 Q 值。</p></article>
         <article class="term" id="bellman"><code>BELLMAN BACKUP</code><h3>用下一步估计当前步</h3><p>当前价值 = 当前 reward + 折扣后的下一状态价值。它将长期问题递归拆解。</p><p class="example"><b>例子：</b>Q(s,a) 用 r + γ max Q(s′,a′) 作为学习目标。</p></article>
-        <article class="term" id="td"><code>TD ERROR / 时序差分误差 δ</code><h3>预测和新目标之间的差</h3><p>δ = r + γV(s′) − V(s)。它是“我原先对未来的估计错了多少”。</p><p class="example"><b>例子：</b>若意外拿到高 reward，δ 为正，相关价值会上调。</p></article>
+        <article class="term" id="td"><code>TD / TEMPORAL DIFFERENCE / 时序差分</code><h3>用“下一步”纠正“这一刻”的估计</h3><p>Temporal（时序）说的是相邻时间步；Difference（差分）是新 target 与旧预测的差。TD error 写作 δ = r + γV(s′) − V(s)，表示“我原先对未来估计错了多少”。</p><p class="example"><b>例子：</b>若意外拿到高 reward，δ 为正，相关价值会上调。</p></article>
         <article class="term" id="exploration"><code>EXPLORATION / 探索</code><h3>主动尝试尚不确定的动作</h3><p>不探索就可能永远不知道更好的路径；探索过多又会牺牲即时表现。</p><p class="example"><b>例子：</b>ε-greedy 以 ε 的概率随机行动。</p></article>
         <article class="term" id="exploitation"><code>EXPLOITATION / 利用</code><h3>选择当前估计最好的动作</h3><p>利用已有知识拿 reward；它与探索共同构成经典张力。</p><p class="example"><b>例子：</b>选择当前 Q(s,a) 最大的动作。</p></article>
         <article class="term" id="model"><code>MODEL / 环境模型</code><h3>预测环境如何回应动作的规则</h3><p>模型给出转移概率与奖励，即 P(s′,r|s,a)。它可以由人提供、通过数据学习，或完全未知。</p><p class="example"><b>例子：</b>棋盘游戏的移动规则是已知模型；真实机器人动力学常需要估计。</p></article>
-        <article class="term" id="dp"><code>DYNAMIC PROGRAMMING / 动态规划</code><h3>在已知模型上做递归 backup</h3><p>遍历状态，用所有可能后继的期望更新价值。它不是“动态地写程序”，而是利用子问题递归结构。</p><p class="example"><b>例子：</b>Value Iteration 反复执行 maxₐ E[r+γV(s′)]。</p></article>
-        <article class="term" id="monte-carlo"><code>MONTE CARLO / 蒙特卡洛</code><h3>用完整随机样本回报做平均</h3><p>不需要环境模型，也不 bootstrap；要等 episode 结束得到真实 Gₜ。</p><p class="example"><b>例子：</b>多次走到终点后，平均每次从某格开始的完整回报。</p></article>
+        <article class="term" id="dp"><code>DP / DYNAMIC PROGRAMMING / 动态规划</code><h3>在已知模型上做递归 backup</h3><p>Dynamic Programming（动态规划）不是“动态地写程序”：它把大问题拆成相互依赖的子问题，重复使用它们的答案。RL 里遍历状态，用所有可能后继的期望更新价值。</p><p class="example"><b>例子：</b>Value Iteration 反复执行 maxₐ E[r+γV(s′)]。</p></article>
+        <article class="term" id="monte-carlo"><code>MC / MONTE CARLO / 蒙特卡洛</code><h3>用完整随机样本回报做平均</h3><p>Monte Carlo（蒙特卡洛）方法以大量随机试验的统计平均逼近期望。在 RL 中，它不需要环境模型，也不 bootstrap；要等 episode 结束得到真实 Gₜ。</p><p class="example"><b>例子：</b>多次走到终点后，平均每次从某格开始的完整回报。</p></article>
         <article class="term" id="bootstrap"><code>BOOTSTRAP / 自举</code><h3>用自己的下一步估计构造当前 target</h3><p>不等最终结果，而以 r+γV(s′) 或 r+γmaxQ(s′,a′) 提前更新。它加快学习，也可能传播估计误差。</p><p class="example"><b>例子：</b>TD(0) 看见一步 transition 就更新 V(s)。</p></article>
       </div></section>
       <section><p class="eyebrow">NEXT</p><h2>接下来这些词会自然出现。</h2><p>Replay Buffer、Target Network、Actor、Critic、Advantage、KL、Verifier、Rollout、Off-policy、On-policy 会在对应原理课出现时补齐，不让词表领先于理解。</p></section>
