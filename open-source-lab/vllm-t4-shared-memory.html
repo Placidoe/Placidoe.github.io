@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="面向初学者讲清 vLLM #36802：Tesla T4、Triton Unified Attention、80 KiB 共享内存溢出的复现、根因、修复与验证。" />
+    <title>vLLM T4 共享内存溢出 — Open Source Fix Lab</title>
+    <link rel="stylesheet" href="lab.css" />
+    <script src="lab.js" defer></script>
+  </head>
+  <body>
+    <div class="reading-progress" aria-hidden="true"></div>
+    <nav class="site-nav" aria-label="主导航">
+      <div class="shell nav-inner">
+        <a class="brand" href="./"><span class="brand-mark">⌁</span><span>Open Source Fix Lab</span></a>
+        <div class="nav-links">
+          <a aria-current="page" href="./">案例</a>
+          <a href="../">主页</a>
+          <a class="github-link" href="https://github.com/Placidoe/vllm/tree/fix/t4-triton-unified-attention-shmem" target="_blank" rel="noreferrer">查看分支 ↗</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <header class="page-hero">
+        <div class="shell">
+          <a class="back-link" href="./">← 返回案例集合</a>
+          <div class="page-hero-grid">
+            <div>
+              <p class="kicker">Case 002 · GPU kernel bugfix</p>
+              <h1>修复 Tesla T4 上的 80 KiB 共享内存溢出</h1>
+              <p class="lede">vLLM issue #36802 的首请求崩溃并不是显存不够，而是一个 Triton block 临时申请了超过 T4 硬件上限的共享内存。我把报错还原成可计算的 Q / K / V tile 账单，再用真实 2×T4 验证修复。</p>
+            </div>
+            <div class="case-facts" aria-label="案例事实">
+              <div class="fact"><span>上游问题</span><span>vLLM #36802</span></div>
+              <div class="fact"><span>硬件</span><span>2 × Tesla T4 · SM75</span></div>
+              <div class="fact"><span>失败值</span><span>81,920 B &gt; 65,536 B</span></div>
+              <div class="fact"><span>修复提交</span><span>5f00137664</span></div>
+              <div class="fact"><span>当前状态</span><span>Fork 已验证，上游 issue 讨论中</span></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="shell article-layout">
+        <aside class="toc" aria-label="文章目录">
+          <p>On this page</p>
+          <a class="active" href="#plain">一分钟说明</a>
+          <a href="#background">背景词典</a>
+          <a href="#repro">怎么复现</a>
+          <a href="#chain">原本链路</a>
+          <a href="#root-cause">根因计算</a>
+          <a href="#failed-idea">失败尝试</a>
+          <a href="#fix">修复方案</a>
+          <a href="#verification">真实验证</a>
+          <a href="#scope">影响与边界</a>
+        </aside>
+
+        <article class="article">
+          <section id="plain">
+            <div class="plain-card">
+              <p class="label">先用大白话说</p>
+              <p>GPU 里有一块很快但很小的“工作台”，叫 shared memory。这个 attention 内核一次把 Q、K、V 三组数据都摆上工作台，共要 80 KiB；Tesla T4 的工作台只有 64 KiB，所以还没开始算就被硬件拒绝。修复不是换模型，而是让 T4 每轮少搬一半 K / V token：同样的活分更多轮做，工作台占用降到约 48 KiB。</p>
+            </div>
+            <p>这类错误容易被误解成“GPU 显存不够”。但错误里的 <code>shared memory</code> 指每个 CUDA block 的片上临时空间，不是显卡的 16 GB 全局显存。加 CPU offload 可以帮助模型装入显存，却不能改变单个 block 的 64 KiB 上限。</p>
+          </section>
+
+          <section id="background">
+            <h2>先认识六个词</h2>
+            <div class="glossary">
+              <article class="term"><b>Triton</b><p>用 Python 风格代码编写 GPU kernel 的语言和编译器；这里负责生成 attention 内核。</p></article>
+              <article class="term"><b>Kernel</b><p>在 GPU 上并行执行的一段函数。launch 前，运行时会检查它需要的硬件资源。</p></article>
+              <article class="term"><b>Shared memory</b><p>同一个 thread block 共享的高速片上内存，容量远小于显存。</p></article>
+              <article class="term"><b>Tile</b><p>一次搬进工作台并处理的数据小块。tile 越大，循环可能越少，但临时空间更大。</p></article>
+              <article class="term"><b>SM75</b><p>Turing 架构的 compute capability 7.5；Tesla T4 属于这一代。</p></article>
+              <article class="term"><b>BF16 → FP32</b><p>T4 不原生支持 BF16，vLLM 把模型计算提升为 FP32；每个元素从 2 字节变成 4 字节。</p></article>
+            </div>
+          </section>
+
+          <section id="repro">
+            <h2>报错是什么，怎样做到同条件复现？</h2>
+            <p>上游 issue 报告在 T4 上运行 <code>nvidia/Nemotron-Content-Safety-Reasoning-4B</code>，第一个请求就失败：</p>
+            <pre class="code-block">triton.runtime.errors.OutOfResources:
+out of resource: shared memory
+Required: 81920, Hardware limit: 65536</pre>
+            <p>原报告是 4×T4。Kaggle 只有 2×T4，因此我使用 tensor parallel 2、<code>cpu_offload_gb=4</code>，并关闭 hybrid KV cache manager，让 FP32 模型能够装入。它们只解决容量问题，不会改变 head size、元素宽度或单 block shared-memory 上限。</p>
+            <table class="responsibility-table">
+              <thead><tr><th>项目</th><th>验证环境</th><th>为什么重要</th></tr></thead>
+              <tbody>
+                <tr><td>模型</td><td>Nemotron Content Safety Reasoning 4B</td><td>与 issue 相同，包含目标 Gemma 3 attention 路径</td></tr>
+                <tr><td>vLLM</td><td>0.17.1 · commit 95c0f928…</td><td>对齐报告对应的软件版本</td></tr>
+                <tr><td>PyTorch / Triton</td><td>2.10.0+cu128 / 3.6.0</td><td>避免编译器版本差异掩盖问题</td></tr>
+                <tr><td>GPU</td><td>2× Tesla T4 · CC 7.5</td><td>真实 SM75，不用 mock 假装硬件约束</td></tr>
+                <tr><td>实际 dtype</td><td>FP32</td><td>直接决定每个 Q / K / V 元素占 4 字节</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section id="chain">
+            <h2>从模型加载到内核崩溃，原本发生了什么？</h2>
+            <div class="flow" role="img" aria-label="vLLM T4 共享内存溢出的原始链路">
+              <p class="flow-title">Before · the first request never reaches generation</p>
+              <div class="flow-row">
+                <div class="flow-node"><b>模型声明 BF16</b><span>Nemotron / Gemma 3</span></div>
+                <div class="flow-node"><b>T4 自动提升</b><span>BF16 → FP32<br />4 bytes / element</span></div>
+                <div class="flow-node"><b>Unified Attention</b><span>head_size = 256</span></div>
+                <div class="flow-node problem"><b>K/V tile = 32</b><span>Q + K + V = 80 KiB</span></div>
+                <div class="flow-node problem"><b>Kernel launch 失败</b><span>T4 limit = 64 KiB</span></div>
+              </div>
+            </div>
+            <p>Gemma 3 的优化策略为 Unified Attention 选择 32-token K / V tile。在 FP16 / BF16 下未必有问题，但 T4 上的实际执行 dtype 是 FP32，每个元素翻倍为 4 字节，于是同一块 tile 的临时空间也翻倍。</p>
+          </section>
+
+          <section id="root-cause">
+            <h2>81,920 字节是可以一项项算出来的</h2>
+            <ul>
+              <li><strong>Q tile：</strong><code>16 行 × 256 head size × 4 bytes = 16 KiB</code></li>
+              <li><strong>K tile：</strong><code>256 head size × 32 tokens × 4 bytes = 32 KiB</code></li>
+              <li><strong>V tile：</strong><code>32 tokens × 256 head size × 4 bytes = 32 KiB</code></li>
+              <li><strong>合计：</strong><code>16 + 32 + 32 = 80 KiB = 81,920 bytes</code></li>
+            </ul>
+            <div class="memory-figure" role="img" aria-label="修复前后共享内存占用对比，T4 上限 64 KiB">
+              <div class="memory-row">
+                <b>修复前</b>
+                <div class="memory-bar"><span class="seg q">Q 16</span><span class="seg k">K 32</span><span class="seg v">V 32</span></div>
+                <span>80 KiB</span>
+              </div>
+              <div class="memory-row after">
+                <b>修复后</b>
+                <div class="memory-bar"><span class="seg q">Q 16</span><span class="seg k">K 16</span><span class="seg v">V 16</span></div>
+                <span>48 KiB</span>
+              </div>
+              <div class="memory-legend"><span><i style="background:var(--mint)"></i>Q tile</span><span><i style="background:var(--blue)"></i>K tile</span><span><i style="background:#b4a3ff"></i>V tile</span><span><i style="background:var(--amber)"></i>虚线：T4 64 KiB 上限</span></div>
+            </div>
+            <p>报错里的两个数字与这份账单完全吻合。这把“可能是 Triton 的问题”收敛成一个具体结论：<strong>SM75 + FP32 + head 256 + tile 32 的静态内核形状超过硬件限制。</strong></p>
+          </section>
+
+          <section id="failed-idea">
+            <h2>一个很合理、但实际无效的尝试</h2>
+            <p>Triton 的报错通常会建议降低 <code>num_stages</code>，因为流水线 stage 增多可能复制临时 buffer。于是我先验证了 <code>num_stages=1</code>。</p>
+            <div class="callout"><p><strong>结果：</strong>完整模型仍然请求 81,920 字节，数字一字不变。说明这 80 KiB 来自同时存活的 Q / K / V tile，而不是软件流水线的额外复制。</p></div>
+            <p>保留这个失败实验很重要：它排除了一个常见解释，也防止后续维护者再次走同一条路。真正有效的控制量必须是 K / V tile size。</p>
+          </section>
+
+          <section id="fix">
+            <h2>修复：只在精确命中问题形状时把 tile 32 改成 16</h2>
+            <p>我没有按模型名硬编码，也没有让所有 T4 都降级。策略只在三个条件同时成立时触发：</p>
+            <ol>
+              <li>设备是 <strong>SM75</strong>；</li>
+              <li>attention <strong>head size = 256</strong>；</li>
+              <li>Query 和 KV 的元素宽度都是 <strong>4 bytes（FP32）</strong>。</li>
+            </ol>
+            <pre class="code-block" aria-label="T4 tile 策略的概念代码">if capability == 75 and head_size == 256
+   and q_element_size == 4 and kv_element_size == 4:
+    return 16  # K/V tile: 32 → 16
+
+return existing_tile_policy(...)</pre>
+            <p>tile 变小以后，同一段序列会通过更多轮循环处理，attention 公式、覆盖范围和输出 dtype 都不变。Q 仍是 16 KiB，K / V 各降到 16 KiB，总计约 48 KiB，低于 T4 的 64 KiB 上限。</p>
+            <div class="flow" role="img" aria-label="修复策略的条件判断">
+              <p class="flow-title">Narrow guard · no model-name special case</p>
+              <div class="flow-row">
+                <div class="flow-node"><b>选择 tile</b><span>_get_tile_size</span></div>
+                <div class="flow-node"><b>是否 SM75？</b><span>否则走旧策略</span></div>
+                <div class="flow-node"><b>head 256？</b><span>否则走旧策略</span></div>
+                <div class="flow-node"><b>Q / KV 为 FP32？</b><span>否则走旧策略</span></div>
+                <div class="flow-node fixed"><b>tile = 16</b><span>shared memory ≈ 48 KiB</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="verification">
+            <h2>验证分三层：策略、内核、完整模型</h2>
+            <div class="evidence-grid">
+              <article class="evidence"><span class="evidence-state">Layer 1 · Passed</span><h3>Tile 策略单测</h3><p>确认只有 SM75 + FP32 + head 256 选择 16；其它 head、dtype 和架构保持原策略。</p></article>
+              <article class="evidence"><span class="evidence-state">Layer 2 · Covered</span><h3>T4 内核回归</h3><p>为目标形状补充 prefill / decode 测试，输出对照 reference attention。</p></article>
+              <article class="evidence"><span class="evidence-state">Layer 3 · Passed</span><h3>真实完整模型</h3><p>2×T4 加载同一 Nemotron 模型，修复后成功生成 32 个 token，进程 exit 0。</p></article>
+              <article class="evidence"><span class="evidence-state">Control · Reproduced</span><h3>未修复基线</h3><p>同模型、prompt、引擎参数和 GPU，首请求稳定复现 81,920 &gt; 65,536。</p></article>
+            </div>
+            <table class="responsibility-table">
+              <thead><tr><th>运行</th><th>Tile 策略</th><th>实际结果</th></tr></thead>
+              <tbody>
+                <tr><td>基线</td><td>K / V tile = 32</td><td>首请求失败：需要 80 KiB，T4 上限 64 KiB</td></tr>
+                <tr><td>仅 num_stages=1</td><td>tile 仍为 32</td><td>仍需要 80 KiB，失败</td></tr>
+                <tr><td>修复版</td><td>目标形状 K / V tile = 16</td><td>成功生成 32 token，未再出现 shared-memory OOR</td></tr>
+              </tbody>
+            </table>
+            <div class="link-panel">
+              <a href="https://github.com/vllm-project/vllm/issues/36802" target="_blank" rel="noreferrer"><span>上游问题</span><span>vLLM #36802 ↗</span></a>
+              <a href="https://github.com/vllm-project/vllm/issues/36802#issuecomment-5865303404" target="_blank" rel="noreferrer"><span>我们的回复</span><span>复现、根因与方案摘要 ↗</span></a>
+              <a href="https://github.com/Placidoe/vllm/commit/5f00137664b07659b6975be32520d7ea6f803f86" target="_blank" rel="noreferrer"><span>修复提交</span><span>5f00137664 ↗</span></a>
+              <a href="https://www.kaggle.com/code/placideo/vllm-36802-full-model-t4-reproduction" target="_blank" rel="noreferrer"><span>真实 T4 Notebook</span><span>Kaggle 完整复现 ↗</span></a>
+              <a href="https://github.com/Placidoe/vllm/blob/fix/t4-triton-unified-attention-shmem/docs/design/t4_triton_unified_attention_shared_memory_zh.md" target="_blank" rel="noreferrer"><span>中文方案原文</span><span>设计与验证记录 ↗</span></a>
+            </div>
+          </section>
+
+          <section id="scope">
+            <h2>影响范围、风险和当前状态</h2>
+            <table class="responsibility-table">
+              <thead><tr><th>设备与输入</th><th>修复后行为</th></tr></thead>
+              <tbody>
+                <tr><td>SM75 · FP32 · head 256</td><td>使用 tile 16，避免 80 KiB 分配</td></tr>
+                <tr><td>SM75 · FP32 · head 128</td><td>不变</td></tr>
+                <tr><td>SM75 · FP16 / BF16 · head 256</td><td>不变</td></tr>
+                <tr><td>Ampere / Ada / Hopper</td><td>不变</td></tr>
+                <tr><td>Blackwell head 256 优化</td><td>原有 8 warps / 2 stages 路径不变</td></tr>
+              </tbody>
+            </table>
+            <p>主要风险是 T4 上更小的 tile 可能带来延迟或吞吐回退。当前证据已经证明它把“完全无法运行”变成“可以完成生成”，但合入前仍值得补充稳定的性能对比，看看能否在 16 与其它候选 tile 之间找到更好平衡。</p>
+            <div class="status-timeline">
+              <div class="status-item"><b>真实 T4 基线已复现</b><p>错误数字与上游报告一致：81,920 &gt; 65,536。</p></div>
+              <div class="status-item"><b>根因已用静态内存账单解释</b><p>Q / K / V 三块 tile 正好合计 80 KiB。</p></div>
+              <div class="status-item"><b>Fork 修复与完整模型验证已完成</b><p>修复分支公开，Kaggle 2×T4 成功生成 32 token。</p></div>
+              <div class="status-item pending"><b>等待上游维护者反馈</b><p>已在 issue 留下方案与证据；目前没有把“可提交候选修复”写成“已被 vLLM 接受”。</p></div>
+            </div>
+            <div class="callout"><p><strong>我学到的核心：</strong>看到 GPU OOR，先分清是哪一种内存；看到编译器建议，也要做对照实验。一个能解释精确报错数字、能在真实硬件上复现、并且只改变目标形状的补丁，才具备进入上游评审的基础。</p></div>
+          </section>
+        </article>
+      </div>
+
+      <div class="shell article-footer">
+        <a class="next-card" href="dsh-heterogeneous-routing.html"><span><small>上一篇 · CASE 001</small><b>DSH Agent Team 异构模型路由</b></span><span>←</span></a>
+      </div>
+    </main>
+
+    <footer class="site-footer"><div class="shell footer-inner"><span>© 2026 Placidoe · Open Source Fix Lab</span><span><a href="./">返回案例集合</a></span></div></footer>
+  </body>
+</html>

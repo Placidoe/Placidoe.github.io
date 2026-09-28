@@ -6,6 +6,7 @@ Personal technical homepage and notes, published at [placidoe.github.io](https:/
 
 - [RL Roadmap](https://placidoe.github.io/rl-roadmap.html) — a visual, evidence-first route from tabular RL through deep RL, world models, offline RL, RLHF, and agentic RL. It links original papers and the reproducible results in [`rl-lab`](https://github.com/Placidoe/rl-lab).
 - [RL Collection](https://placidoe.github.io/rl/) — the standalone 0-to-1 learning collection. Lesson 01 introduces MDPs, trajectories, the return objective, and the Markov assumption; later experiments remain explicitly pending.
+- [Open Source Fix Lab](https://placidoe.github.io/open-source-lab/) — beginner-friendly, evidence-backed walkthroughs of open-source issues and features, from the original call chain and root cause to the patch, validation, and upstream status.
 
 ## Add a note
 

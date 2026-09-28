@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="面向初学者讲清 DeepSeek Harness Agent Team 异构模型队友调度：背景、原链路、根因、修复、持久化和验证。" />
+    <title>DSH 异构模型队友调度 — Open Source Fix Lab</title>
+    <link rel="stylesheet" href="lab.css" />
+    <script src="lab.js" defer></script>
+  </head>
+  <body>
+    <div class="reading-progress" aria-hidden="true"></div>
+    <nav class="site-nav" aria-label="主导航">
+      <div class="shell nav-inner">
+        <a class="brand" href="./"><span class="brand-mark">⌁</span><span>Open Source Fix Lab</span></a>
+        <div class="nav-links">
+          <a aria-current="page" href="./">案例</a>
+          <a href="../">主页</a>
+          <a class="github-link" href="https://github.com/Placidoe/agent-deck-harness/tree/fix/agent-team-heterogeneous-routing" target="_blank" rel="noreferrer">查看分支 ↗</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <header class="page-hero">
+        <div class="shell">
+          <a class="back-link" href="./">← 返回案例集合</a>
+          <div class="page-hero-grid">
+            <div>
+              <p class="kicker">Case 001 · Agent runtime feature</p>
+              <h1>让 Agent Team 的队友使用不同模型</h1>
+              <p class="lede">我把 <code>spawn_teammate</code> 从工具入口追到子 Session，补上模型路由缺失的数据链路，同时保留 fresh / fork 的上下文语义、部署白名单和重启恢复能力。</p>
+            </div>
+            <div class="case-facts" aria-label="案例事实">
+              <div class="fact"><span>项目</span><span>DeepSeek Harness</span></div>
+              <div class="fact"><span>类型</span><span>Feature / Runtime</span></div>
+              <div class="fact"><span>实现提交</span><span>b7db12d201</span></div>
+              <div class="fact"><span>改动规模</span><span>29 files · +416 / −88</span></div>
+              <div class="fact"><span>当前状态</span><span>Fork 分支已实现，未声明上游合入</span></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="shell article-layout">
+        <aside class="toc" aria-label="文章目录">
+          <p>On this page</p>
+          <a class="active" href="#plain">一分钟说明</a>
+          <a href="#background">背景词典</a>
+          <a href="#before">原本链路</a>
+          <a href="#layers">每层职责</a>
+          <a href="#root-cause">根因</a>
+          <a href="#fix">修复方案</a>
+          <a href="#persistence">持久化</a>
+          <a href="#verification">如何验证</a>
+          <a href="#status">当前边界</a>
+        </aside>
+
+        <article class="article">
+          <section id="plain">
+            <div class="plain-card">
+              <p class="label">先用大白话说</p>
+              <p>原来的 Agent Team 像一个只能给所有员工配同款电脑的团队：主 Agent 用什么模型，新建的队友就跟着用什么模型。我们补上的能力，是让主 Agent 在允许的清单里，为“查资料”“写代码”“做审计”等不同岗位选择不同模型，并且把这次选择存进子会话，重启以后也不会丢。</p>
+            </div>
+            <p>这个需求表面上像“给工具加三个参数”，实际牵涉四件事：模型能不能看到这些参数、部署是否允许这条路由、子 Session 是否真的收到选择、进程重启后是否还使用同一模型。漏掉任何一层，功能都会变成只在演示时看起来可用。</p>
+          </section>
+
+          <section id="background">
+            <h2>先认识六个词</h2>
+            <div class="glossary">
+              <article class="term"><b>Lead Agent</b><p>团队里的主 Agent，负责拆任务、创建队友和协调结果。</p></article>
+              <article class="term"><b>Teammate</b><p>由 Lead 创建的子 Agent，有自己的 Session，可以持续接收消息。</p></article>
+              <article class="term"><b>Runtime provider</b><p>决定子 Session “怎么出生”：全新上下文用 spawn，继承历史用 fork。</p></article>
+              <article class="term"><b>LLM provider</b><p>真正调用模型的适配器，例如某个 API 接入方；它和 spawn / fork 不是一回事。</p></article>
+              <article class="term"><b>AgentOptions</b><p>创建 Agent 时携带的执行选项，包括 LLM provider、model 和 reasoning effort。</p></article>
+              <article class="term"><b>Session descriptor</b><p>子会话的持久化说明书。恢复 Session 时，运行时从这里找回原来的模型路由。</p></article>
+            </div>
+            <div class="callout blue"><p><strong>最容易混淆的点：</strong>“provider”在这里有两类。runtime provider 负责会话启动方式；LLM provider 负责模型调用。名字相似，但职责不同。</p></div>
+          </section>
+
+          <section id="before">
+            <h2>原本的调用链为什么只能继承主模型？</h2>
+            <p>我先从模型能调用的工具开始向下追。修复前，链路是这样的：</p>
+            <div class="flow" role="img" aria-label="修复前的队友创建链路">
+              <p class="flow-title">Before · model route disappears before child creation</p>
+              <div class="flow-row">
+                <div class="flow-node"><b>spawn_teammate</b><span>name / description / prompt / context</span></div>
+                <div class="flow-node"><b>context 映射</b><span>fresh → spawn<br />fork → fork</span></div>
+                <div class="flow-node"><b>Team service</b><span>createMember(runtime provider)</span></div>
+                <div class="flow-node problem"><b>startContinuable</b><span>prompt + parent<br />没有 agentOptions</span></div>
+                <div class="flow-node problem"><b>Child Session</b><span>继承 Lead 的 LLM 路由</span></div>
+              </div>
+            </div>
+            <p><code>context</code> 只能告诉系统使用 fresh 还是 fork。它没有表达“这个队友要使用哪个 LLM provider / model”的位置。到了 <code>startContinuable</code> 时，调用里又没有 <code>agentOptions</code>，运行时只能按既有规则从 Lead 继承。</p>
+            <p>所以这不是模型“不够聪明”，也不是调度提示词“不够强”。<strong>数据根本没有一条从工具参数通往子 Session 的合法道路。</strong></p>
+          </section>
+
+          <section id="layers">
+            <h2>这条链路里，每一层到底负责什么？</h2>
+            <p>把职责拆开后，修复应该落在哪里就清楚了。上层负责表达意图，中间层负责授权和创建，底层负责执行与恢复。</p>
+            <table class="responsibility-table">
+              <thead><tr><th>层</th><th>职责</th><th>它不应该负责</th><th>持久化结果</th></tr></thead>
+              <tbody>
+                <tr><td><code>spawn_teammate</code> 工具</td><td>给模型公开可填写字段；把请求交给共享选择策略</td><td>自己维护模型注册表，或接受任意字符串</td><td>无</td></tr>
+                <tr><td>共享模型选择策略</td><td>白名单、继承、推理强度归一化、适配器和 Session 预检</td><td>创建 Team member 或写 Team 日志</td><td>无</td></tr>
+                <tr><td>Team roster 服务</td><td>预留成员身份、记录 provisioning、调用 continuable runtime</td><td>重新解释 LLM 能力</td><td>成员事件和 runtime provider</td></tr>
+                <tr><td>Continuable runtime</td><td>按 spawn / fork 创建历史与子 Session，转交 <code>agentOptions</code></td><td>替部署决定哪些模型可用</td><td>子 Session 与 inbox</td></tr>
+                <tr><td>Child Session descriptor</td><td>保存最终生效的 provider、model、reasoning effort</td><td>保存 Team 的业务 roster</td><td>可冷恢复的 LLM 路由</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section id="root-cause">
+            <h2>根因不是一个，而是三个缺口叠在一起</h2>
+            <h3>1. 表达缺口</h3>
+            <p><code>spawn_teammate</code> 的 schema 只有身份、任务和上下文模式，没有 LLM provider、model、reasoning effort。Lead 即使知道应该分配专家模型，也没有字段可以表达。</p>
+            <h3>2. 传递缺口</h3>
+            <p>Team 服务调用 <code>startContinuable({ prompt, parent })</code> 时没有传 <code>agentOptions</code>。因此就算上层临时拿到了模型名，也到不了创建子 Session 的位置。</p>
+            <h3>3. 权威缺口</h3>
+            <p>如果只把字符串一路透传，会出现更危险的问题：模型可能猜错 ID、请求部署未授权的模型，或选择运行时不支持的推理强度；重启时也不清楚该相信 Team 日志还是 Session 数据。</p>
+            <div class="callout"><p><strong>关键判断：</strong>正确修复必须同时解决“能表达、能传递、能授权、能恢复”。只给函数签名加参数，会得到一个不可控且不可恢复的半成品。</p></div>
+          </section>
+
+          <section id="fix">
+            <h2>修复：把两种选择拆开，再复用同一套授权策略</h2>
+            <p>我保留 <code>context</code> 负责 runtime 选择，新增可选的 <code>provider</code>、<code>model</code> 和 <code>reasoning_effort</code> 负责 LLM 路由。provider 与 model 必须同时提供；全部省略时仍然继承 Lead，保证兼容旧行为。</p>
+            <div class="flow" role="img" aria-label="修复后的队友创建链路">
+              <p class="flow-title">After · runtime choice and LLM route travel separately</p>
+              <div class="flow-row">
+                <div class="flow-node fixed"><b>spawn_teammate</b><span>context + optional provider / model / effort</span></div>
+                <div class="flow-node fixed"><b>Model selection</b><span>allowlist + adapter + Session preflight</span></div>
+                <div class="flow-node"><b>Team service</b><span>runtimeProvider + resolved agentOptions</span></div>
+                <div class="flow-node fixed"><b>startContinuable</b><span>parent + prompt + agentOptions</span></div>
+                <div class="flow-node fixed"><b>Child descriptor</b><span>持久化有效 LLM 路由</span></div>
+              </div>
+            </div>
+            <h3>为什么先调用 <code>list_subagent_models</code>？</h3>
+            <p>我们没有让 Lead 猜 provider / model 字符串。启用模型选择的部署会公开 <code>list_subagent_models</code>，返回当前 Session 被允许使用的精确路由。显式选择必须来自 Host 所有的 allowlist。</p>
+            <h3>为什么复用普通 subagent 的选择逻辑？</h3>
+            <p>普通 subagent 已经有 allowlist、继承、推理强度规范化、适配器预检和 Session 准入。我们把这部分整理为公开的 <code>@deepseek-ai/dsh-tool-subagent/model-selection</code> 入口，让 Team 复用同一套权威，而不是复制第二套“差不多”的规则。</p>
+            <h3>为什么要在写 roster 之前预检？</h3>
+            <p>如果先创建成员、再发现模型不可用，Team 会留下占名字、占槽位的半截状态。现在字段配对、白名单、适配器、模型、推理强度和 runtime 能力都先检查；只有全部通过才进入 provisioning。</p>
+            <pre class="code-block" aria-label="修复后的概念调用代码">const childAgentOptions = await resolveChildRoute({
+  provider,
+  model,
+  reasoningEffort,
+  parent: lead,
+})
+
+await team.createMember({
+  runtimeProvider, // spawn / fork
+  prompt,
+  parent: lead,
+  agentOptions: childAgentOptions, // LLM provider / model / effort
+})</pre>
+            <p>上面是概念代码，用来突出两条选择的分离；实际实现还包含 scope、能力检查、事件落盘和错误语义。</p>
+          </section>
+
+          <section id="persistence">
+            <h2>为什么重启后不会又退回主模型？</h2>
+            <p>我们没有把 LLM 路由重复写进 Team roster。Team 日志继续只保存成员身份、上下文模式和 runtime provider；真正决定执行模型的 <code>AgentOptions</code> 保存到 child Session descriptor。</p>
+            <div class="flow" role="img" aria-label="模型路由的持久化与恢复链路">
+              <p class="flow-title">Persistence · one source of truth</p>
+              <div class="flow-row">
+                <div class="flow-node"><b>请求通过预检</b><span>authorized route</span></div>
+                <div class="flow-node"><b>Provisioning event</b><span>Team identity + runtime provider</span></div>
+                <div class="flow-node fixed"><b>Child descriptor</b><span>agentOptions</span></div>
+                <div class="flow-node"><b>进程重启</b><span>cold resume</span></div>
+                <div class="flow-node fixed"><b>恢复相同路由</b><span>provider / model / effort</span></div>
+              </div>
+            </div>
+            <p>这样只有一个模型事实来源，不会出现“Team 日志说模型 A，Session descriptor 说模型 B”的冲突。roster 可以展示当前已加载成员的模型，但展示字段不承担恢复权威。</p>
+          </section>
+
+          <section id="verification">
+            <h2>怎么证明它不只是“能跑一次”？</h2>
+            <p>验证重点不是一个 happy path，而是那些最容易悄悄损坏状态的边角。</p>
+            <div class="evidence-grid">
+              <article class="evidence"><span class="evidence-state">Passed</span><h3>显式异构路由</h3><p>队友使用允许列表中的另一 provider / model，而不是继承 Lead。</p></article>
+              <article class="evidence"><span class="evidence-state">Passed</span><h3>输入约束</h3><p>只给 provider 或只给 model 会在成员创建前被拒绝。</p></article>
+              <article class="evidence"><span class="evidence-state">Passed</span><h3>能力与白名单</h3><p>未授权路由、不支持 agentOptions 的 runtime、无效 effort 都不能落入 roster。</p></article>
+              <article class="evidence"><span class="evidence-state">Passed</span><h3>兼容旧部署</h3><p>关闭 modelSelectionSettings 时，工具 schema 和原先一样，继续继承 Lead。</p></article>
+              <article class="evidence"><span class="evidence-state">Passed</span><h3>持久化与冷恢复</h3><p>descriptor 保存所选 AgentOptions，恢复后继续使用同一路由。</p></article>
+              <article class="evidence"><span class="evidence-state">Passed</span><h3>工程门禁</h3><p>受影响包测试、TypeScript、lint、目录生成、配置和翻译配对检查通过。</p></article>
+            </div>
+            <p>实现提交改动 29 个文件，包含 Team 类型与 roster 转发、共享 model-selection API、工具 schema、profile 配置、单元测试和中英文文档。重点测试记录在 <code>tool-team.spec.ts</code> 和 <code>team.spec.ts</code>。</p>
+            <div class="link-panel">
+              <a href="https://github.com/Placidoe/agent-deck-harness/commit/b7db12d201542bdc61bb0d65b446aebdba979469" target="_blank" rel="noreferrer"><span>实现提交</span><span>b7db12d201 ↗</span></a>
+              <a href="https://github.com/Placidoe/agent-deck-harness/tree/fix/agent-team-heterogeneous-routing" target="_blank" rel="noreferrer"><span>完整分支</span><span>fix/agent-team-heterogeneous-routing ↗</span></a>
+              <a href="https://github.com/Placidoe/agent-deck-harness/blob/fix/agent-team-heterogeneous-routing/.agents/notes/implemented/bug-fix/2026-09-28-agent-team-heterogeneous-model-routing.zh.md" target="_blank" rel="noreferrer"><span>中文设计记录</span><span>Agent Note ↗</span></a>
+            </div>
+          </section>
+
+          <section id="status">
+            <h2>做到哪里了，还有什么不能夸大？</h2>
+            <div class="status-timeline">
+              <div class="status-item"><b>调用链与根因已确认</b><p>原链路、职责分层和缺失数据路径都有代码对应。</p></div>
+              <div class="status-item"><b>Fork 分支已实现并推送</b><p>代码、测试、中英文设计文档和更自然的叙述均已提交。</p></div>
+              <div class="status-item"><b>本地相关门禁已通过</b><p>验证覆盖路由选择、失败语义、持久化和固定路由兼容性。</p></div>
+              <div class="status-item pending"><b>尚未声称上游合入</b><p>当前成果属于我们 Fork 中的完整候选实现；上游是否接受仍由维护者评审决定。</p></div>
+            </div>
+            <div class="callout"><p><strong>我学到的核心：</strong>一个跨层 feature 的完成标准不是 UI 多出几个字段，而是意图、授权、执行、持久化和恢复拥有同一套可解释的事实。</p></div>
+          </section>
+        </article>
+      </div>
+
+      <div class="shell article-footer">
+        <a class="next-card" href="vllm-t4-shared-memory.html"><span><small>下一篇 · CASE 002</small><b>vLLM T4 Triton 共享内存溢出</b></span><span>→</span></a>
+      </div>
+    </main>
+
+    <footer class="site-footer"><div class="shell footer-inner"><span>© 2026 Placidoe · Open Source Fix Lab</span><span><a href="./">返回案例集合</a></span></div></footer>
+  </body>
+</html>
