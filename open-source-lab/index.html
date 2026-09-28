@@ -32,7 +32,7 @@
           </div>
           <aside class="hero-aside">
             <strong>这套记录解决什么？</strong>
-            <p>Codex 可以帮我读代码、做实验、写修复，但我仍然需要知道：它改了什么、为什么有效、证据是否足够。</p>
+            <p>把一次修复从“代码改过了”推进到“问题可复现、根因可解释、方案可审查、结果有证据”。</p>
             <p class="status-line"><span class="status-dot"></span> 2 个案例已完成本地实现与验证</p>
           </aside>
         </div>
@@ -99,15 +99,15 @@
 
       <section class="section shell">
         <div class="section-head">
-          <p class="section-index">03 / Working with Codex</p>
+          <p class="section-index">03 / Engineering discipline</p>
           <div>
-            <h2>我确实借助了 Codex，但不是把判断权交出去。</h2>
-            <p>对一个刚进入开源协作的人，最重要的不是假装所有代码都手写，而是能清楚说明自己如何检查事实、如何限制风险、如何承认还没有被证明的部分。</p>
+            <h2>修复过程不仅可复现，也应该经得起审查。</h2>
+            <p>对开源协作来说，真正重要的是清楚说明事实如何被确认、风险如何被限制，以及哪些部分仍然没有得到证明。</p>
           </div>
         </div>
         <div class="principle-grid">
-          <article class="principle"><small>CODEX HELPED</small><h3>扩大阅读和实验的带宽</h3><p>检索调用链、对齐数据结构、生成候选补丁、运行测试、整理复现实验和文档，让我能在一个陌生代码库里更快建立地图。</p></article>
-          <article class="principle"><small>I STILL OWN</small><h3>决定什么才算完成</h3><p>我需要确认问题真的复现、根因能被证据解释、改动没有越界、失败实验被保留，而且“本地通过”没有被包装成“上游已接受”。</p></article>
+          <article class="principle"><small>EVIDENCE BEFORE CONCLUSION</small><h3>先建立证据，再给出判断</h3><p>检索调用链、对齐数据结构、运行对照实验并保留失败路径，让每个结论都能回到代码、日志或真实环境。</p></article>
+          <article class="principle"><small>BOUNDARIES STAY VISIBLE</small><h3>明确完成了什么，也明确还差什么</h3><p>确认问题真的复现、根因可以解释报错、改动没有越界，并且不把“Fork 中验证通过”包装成“上游已经接受”。</p></article>
         </div>
       </section>
     </main>
